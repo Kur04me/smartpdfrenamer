@@ -1,0 +1,11 @@
+# package
+node_modules
+dist
+
+# sample file
+*.pdf
+
+# config
+.env*
+config.json
+
