@@ -13,8 +13,8 @@ PDFファイルの内容を解析して、電子帳簿保存法に則したフ�
 ## インストール方法
 
 ```bash
-# グローバルインストール
-npm install -g smart-pdf-renamer
+# gitをクローン
+git clone https://github.com/Kur04me/smartpdfrenamer.git
 
 # ビルド
 npm run build
