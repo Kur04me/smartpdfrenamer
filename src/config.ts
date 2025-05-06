@@ -19,12 +19,4 @@ const loadedConfig = (() => {
   return defaultConfig;
 })();
 
-export function setConfig(config: Config) {
-  try {
-    fs.writeFileSync(settingFilePath, JSON.stringify(config, null, 2));
-  } catch (error) {
-    console.error("設定ファイルの書き込みに失敗しました:", error);
-  }
-}
-
 export const config = loadedConfig;
