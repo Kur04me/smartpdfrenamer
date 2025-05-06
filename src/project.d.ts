@@ -21,6 +21,7 @@ interface CommandLineOption {
   model: string;
   tradingPartnerFile: string;
   documentTypeFile: string;
+  debug: boolean;
 }
 
 /**
