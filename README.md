@@ -2,6 +2,12 @@
 
 PDFファイルの内容を解析して、電子帳簿保存法に則したファイル名を自動生成するCLIツールです。
 
+## 前提
+
+**Node.js（v18以上推奨）と git がインストールされている必要があります。**  
+[Node.js公式サイト](https://nodejs.org/)  
+[git公式サイト](https://git-scm.com/)
+
 ## 機能
 
 - PDFファイルの内容をChatGPTで解析
@@ -17,6 +23,9 @@ PDFファイルの内容を解析して、電子帳簿保存法に則したフ�
 ```bash
 # gitをクローン
 git clone https://github.com/Kur04me/smartpdfrenamer.git
+
+# パッケージをインストール
+npm install
 
 # ビルド
 npm run build
