@@ -79,7 +79,11 @@ async function renamePdf(pdfPath: string, options: CommandLineOption) {
   }
   const { output, unregistered } = await extractPdfInfo(pdfPath, options);
 
-  const newFileName = `${output.date}_${output.partner}_${output.documentType}_${output.amount}.pdf`;
+  const newFileName = config.rule.fileNameFormat
+    .replace("{date}", output.date)
+    .replace("{partner}", output.partner)
+    .replace("{documentType}", output.documentType)
+    .replace("{amount}", output.amount);
   fs.renameSync(pdfPath, path.join(path.dirname(pdfPath), newFileName));
   console.log(`Renamed: ${fileName} -> ${newFileName}`);
   return unregistered;
@@ -220,13 +224,14 @@ async function main(pdfPath: string, options: CommandLineOption) {
         const failedFiles: string[] = [];
         for (let i = 0; i < files.length; i++) {
           try {
-            console.log(`${i + 1} / ${files.length} 処理中: ${files[i]}`);
+            spinner.start(`${i + 1} / ${files.length} 処理中: ${files[i]}`);
             const { partner, documentType } = await renamePdf(
               path.join(absolutePath, files[i]),
               options
             );
             unregisteredList.partner.push(partner);
             unregisteredList.documentType.push(documentType);
+            spinner.stop();
           } catch (error) {
             failedFiles.push(files[i]);
           }
