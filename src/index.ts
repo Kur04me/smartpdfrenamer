@@ -64,8 +64,27 @@ program
     }
 
     main(pdfPath, options);
-  })
-  .parse(process.argv);
+  });
+
+// 直接実行された場合のみCommanderのパースを実行
+if (require.main === module) {
+  program.parse(process.argv);
+}
+
+/**
+ * ユーザー入力の正規化関数
+ * @param input ユーザー入力
+ * @returns 正規化された文字列
+ */
+function normalizeInput(input: string): string {
+  return input
+    .trim()
+    .replace("　", " ")
+    .replace(/[Ａ-Ｚａ-ｚ０-９]/g, (s) =>
+      String.fromCharCode(s.charCodeAt(0) - 0xfee0)
+    )
+    .toLowerCase();
+}
 
 async function renamePdf(pdfPath: string, options: CommandLineOption) {
   const fileName = path.basename(pdfPath);
@@ -89,7 +108,7 @@ async function renamePdf(pdfPath: string, options: CommandLineOption) {
   return unregistered;
 }
 
-async function solveUnregistered(unregisteredList: UnregisteredList) {
+export async function solveUnregistered(unregisteredList: UnregisteredList) {
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
@@ -103,25 +122,45 @@ async function solveUnregistered(unregisteredList: UnregisteredList) {
       new Set(unregisteredList.documentType)
     ).filter(Boolean);
     // 未登録の取引先、証憑種別を登録
-    for (const partner of unregisteredPartner) {
+    for (let index = 0; index < unregisteredPartner.length; index++) {
+      const partner = unregisteredPartner[index];
       const answer = await rl.question(
-        `${partner}は未登録の取引先です。登録しますか？登録する場合は取引先名を入力してください。しない場合はEnterを押してください。`
+        `[${index + 1}/${
+          unregisteredPartner.length
+        }] "${partner}"は未登録の取引先です。登録しますか？\nこのまま登録する場合は"y"を、取引先名が誤っている場合は正しい取引先名を入力してください。登録しない場合はEnterを押してください`
       );
-      if (answer !== "") {
+      const tAnswer = answer.trim();
+      if (tAnswer === "y" || tAnswer === "Y" || tAnswer === "Ｙ") {
         fs.appendFileSync(
           path.join(__dirname, "..", config.tradingPartnerFile),
-          `,${answer.trim()}`
+          `,${partner}`
+        );
+      }
+      if (tAnswer !== "") {
+        fs.appendFileSync(
+          path.join(__dirname, "..", config.tradingPartnerFile),
+          `,${tAnswer}`
         );
       }
     }
-    for (const documentType of unregisteredDocumentType) {
+    for (let index = 0; index < unregisteredDocumentType.length; index++) {
+      const documentType = unregisteredDocumentType[index];
       const answer = await rl.question(
-        `${documentType}は未登録の証憑種別です。登録しますか？登録する場合は証憑種別名を入力してください。しない場合はEnterを押してください。`
+        `[${index + 1}/${
+          unregisteredDocumentType.length
+        }] "${documentType}"は未登録の証憑種別です。登録しますか？\nこのまま登録する場合は"y"を、証憑種別名が誤っている場合は正しい証憑種別名を入力してください。登録しない場合はEnterを押してください`
       );
-      if (answer !== "") {
+      const tAnswer = answer.trim();
+      if (tAnswer === "y" || tAnswer === "Y" || tAnswer === "Ｙ") {
         fs.appendFileSync(
           path.join(__dirname, "..", config.documentTypeFile),
-          `,${answer.trim()}`
+          `,${documentType}`
+        );
+      }
+      if (tAnswer !== "") {
+        fs.appendFileSync(
+          path.join(__dirname, "..", config.documentTypeFile),
+          `,${tAnswer}`
         );
       }
     }
