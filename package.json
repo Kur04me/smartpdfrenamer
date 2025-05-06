@@ -18,8 +18,8 @@
     "commander": "^13.1.0",
     "deepmerge": "^4.3.1",
     "dotenv": "^16.5.0",
-    "open": "^10.1.1",
-    "openai": "^4.96.2",
+    "open": "^10.1.2",
+    "openai": "^4.97.0",
     "typescript": "^5.8.3"
   }
 }
