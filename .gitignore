@@ -8,4 +8,6 @@ dist
 # config
 .env*
 config.json
+document_type.csv
+trading_partners.csv
 

@@ -11,3 +11,11 @@ export const defaultConfig: Config = {
     alias: [],
   },
 };
+
+export const DEFAULT_DOCUMENT_TYPE = [
+  "見積書",
+  "納品書",
+  "請求書",
+  "領収書",
+  "注文書",
+];

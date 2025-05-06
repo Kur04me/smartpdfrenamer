@@ -7,7 +7,7 @@ import * as readline from "readline/promises";
 import { Spinner } from "./spinner";
 import { Command } from "commander";
 import { config } from "./config";
-
+import { DEFAULT_DOCUMENT_TYPE } from "./default";
 // CLIの設定
 const program = new Command();
 
@@ -123,11 +123,65 @@ async function solveUnregistered(unregisteredList: UnregisteredList) {
   }
 }
 
+function csvFileCheck(options: CommandLineOption) {
+  if (options.debug) console.log("csvFileCheck");
+  const tradingPartnerFile = path.join(
+    __dirname,
+    "..",
+    config.tradingPartnerFile
+  );
+  const documentTypeFile = path.join(__dirname, "..", config.documentTypeFile);
+  if (!fs.existsSync(tradingPartnerFile)) {
+    if (options.debug)
+      console.log("tradingPartnerFileが存在しないため、新たに作成します。");
+    fs.writeFileSync(tradingPartnerFile, "");
+  }
+  if (!fs.existsSync(documentTypeFile)) {
+    if (options.debug)
+      console.log("documentTypeFileが存在しないため、新たに作成します。");
+    fs.writeFileSync(documentTypeFile, DEFAULT_DOCUMENT_TYPE.join(","));
+  }
+  if (options.debug) console.log("csvFileCheck passed.");
+  return;
+}
+
+async function companyNameCheck(options: CommandLineOption) {
+  if (options.debug) console.log("companyNameCheck");
+  if (config.myCompany.name === "") {
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    });
+    try {
+      const answer = await rl.question(
+        `company.nameが指定されていません。自社の名前を登録することで証憑内に含まれる自社の名前が誤って取引先として扱われることを防ぐ為、設定することを推奨します。
+      処理を中止しますか？ [y/n]`
+      );
+      const tAnswer = answer.trim();
+      if (
+        tAnswer === "y" ||
+        tAnswer === "Y" ||
+        tAnswer === "Ｙ" ||
+        tAnswer === ""
+      ) {
+        console.log("処理を中止します。");
+        process.exit(0);
+      }
+    } finally {
+      rl.close();
+    }
+  }
+  if (options.debug) console.log("companyNameCheck passed.");
+  return;
+}
+
 async function main(pdfPath: string, options: CommandLineOption) {
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
   });
+  csvFileCheck(options);
+  await companyNameCheck(options);
   try {
     const spinner = new Spinner();
     const absolutePath = path.resolve(pdfPath);
