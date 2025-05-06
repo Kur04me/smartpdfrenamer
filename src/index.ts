@@ -168,8 +168,8 @@ async function main(pdfPath: string, options: CommandLineOption) {
               path.join(absolutePath, files[i]),
               options
             );
-            unregisteredList.partner.push(...partner);
-            unregisteredList.documentType.push(...documentType);
+            unregisteredList.partner.push(partner);
+            unregisteredList.documentType.push(documentType);
           } catch (error) {
             failedFiles.push(files[i]);
           }
