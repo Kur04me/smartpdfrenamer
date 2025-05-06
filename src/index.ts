@@ -37,6 +37,7 @@ program
 例: -f "^d{8}_hoge_.*?_[0-9]+"`,
     validationOptionArgument
   )
+  .option("-e, --extra-prompt <prompt>", "追加のプロンプトを指定します。")
   .option(
     "-s, --skip-format-check",
     "リネーム前のファイル名チェックをOFFにします。全てのファイルがリネームされます。"

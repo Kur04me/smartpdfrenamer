@@ -22,6 +22,7 @@ interface CommandLineOption {
   tradingPartnerFile: string;
   documentTypeFile: string;
   debug: boolean;
+  extraPrompt: string;
 }
 
 /**

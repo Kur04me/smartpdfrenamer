@@ -28,7 +28,7 @@ JSON形式
 {date: 日付, partner: 取引先名, documentType: 証憑種別, amount: 金額}
 
 ## Values
-- 日付...${config.rule.dateFormat}形式
+- 日付...${config.rule.dateFormat}形式。
 - 取引先名...後述の取引先名リストから優先して選択。合致するものがなければ内容から抽出。
 - 証憑種別...後述の証憑種別から優先して選択。合致するものがなければ内容を考慮して新たに生成。
 - 金額...コンマなしの半角数字のみ。存在しない場合は0を出力。
@@ -76,7 +76,7 @@ export async function extractPdfInfo(
           },
           {
             type: "input_text",
-            text: prompt,
+            text: prompt + `\n## 追加のプロンプト\n${options.extraPrompt}`,
           },
         ],
       },
