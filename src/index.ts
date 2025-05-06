@@ -92,10 +92,12 @@ async function solveUnregistered(unregisteredList: UnregisteredList) {
   });
   try {
     // 配列の重複の除去
-    const unregisteredPartner = Array.from(new Set(unregisteredList.partner));
+    const unregisteredPartner = Array.from(
+      new Set(unregisteredList.partner)
+    ).filter(Boolean);
     const unregisteredDocumentType = Array.from(
       new Set(unregisteredList.documentType)
-    );
+    ).filter(Boolean);
     // 未登録の取引先、証憑種別を登録
     for (const partner of unregisteredPartner) {
       const answer = await rl.question(
