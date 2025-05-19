@@ -88,14 +88,6 @@ function normalizeInput(input: string): string {
 
 async function renamePdf(pdfPath: string, options: CommandLineOption) {
   const fileName = path.basename(pdfPath);
-  // ファイル名のフォーマットチェック
-  if (
-    !options.skipFormatCheck &&
-    fileName.match(/^[0-9]{8}_.*?_.*?_[0-9]+\.pdf$/)
-  ) {
-    console.log(`${fileName}はすでにフォーマットが適用されています。`);
-    return { partner: "", documentType: "" };
-  }
   const { output, unregistered } = await extractPdfInfo(pdfPath, options);
 
   const newFileName = config.rule.fileNameFormat
@@ -125,8 +117,7 @@ export async function solveUnregistered(unregisteredList: UnregisteredList) {
     for (let index = 0; index < unregisteredPartner.length; index++) {
       const partner = unregisteredPartner[index];
       const answer = await rl.question(
-        `[${index + 1}/${
-          unregisteredPartner.length
+        `[${index + 1}/${unregisteredPartner.length
         }] "${partner}"は未登録の取引先です。登録しますか？\nこのまま登録する場合は"y"を、取引先名が誤っている場合は正しい取引先名を入力してください。登録しない場合はEnterを押してください`
       );
       const tAnswer = answer.trim();
@@ -146,8 +137,7 @@ export async function solveUnregistered(unregisteredList: UnregisteredList) {
     for (let index = 0; index < unregisteredDocumentType.length; index++) {
       const documentType = unregisteredDocumentType[index];
       const answer = await rl.question(
-        `[${index + 1}/${
-          unregisteredDocumentType.length
+        `[${index + 1}/${unregisteredDocumentType.length
         }] "${documentType}"は未登録の証憑種別です。登録しますか？\nこのまま登録する場合は"y"を、証憑種別名が誤っている場合は正しい証憑種別名を入力してください。登録しない場合はEnterを押してください`
       );
       const tAnswer = answer.trim();
@@ -221,67 +211,104 @@ async function companyNameCheck(options: CommandLineOption) {
   return;
 }
 
+function isValidFileNameFormat(filePath: string): boolean {
+  const fileName = path.basename(filePath);
+  const fileNameFormatRule = config.rule.fileNameFormat;
+  // プレースホルダーを正規表現パターンに変換
+  const pattern = fileNameFormatRule
+    .replace(/\{date\}/g, "[0-9]+") // YYYYMMDD形式
+    .replace(/\{partner\}/g, "[^_]+") // アンダースコア以外の文字
+    .replace(/\{documentType\}/g, "[^_]+") // アンダースコア以外の文字
+    .replace(/\{amount\}/g, "[0-9]+") // 数字のみ
+    .replace(/\./g, "\\."); // ドットをエスケープ
+  const regex = new RegExp(`^${pattern}$`);
+  return regex.test(fileName);
+}
+
 async function main(pdfPath: string, options: CommandLineOption) {
+  // 設定チェック
+  csvFileCheck(options);
+  await companyNameCheck(options);
+
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
   });
-  csvFileCheck(options);
-  await companyNameCheck(options);
+
   try {
     const spinner = new Spinner();
     const absolutePath = path.resolve(pdfPath);
 
-    // ファイルかディレクトリで分岐
+    // ファイルパスの場合
     const stats = fs.statSync(absolutePath);
     if (stats.isFile()) {
       spinner.start(`処理中: ${absolutePath}`);
-      const { partner, documentType } = await renamePdf(absolutePath, options);
-      spinner.stop();
-      await solveUnregistered({
-        partner: [partner],
-        documentType: [documentType],
-      }); // 未登録の取引先、証憑種別を登録
-      process.exit(0);
-    } else if (stats.isDirectory()) {
-      const answer = await rl.question(
-        "ディレクトリが指定されました。指定されたディレクトリのPDFファイルを処理しますか？[y/n] "
-      );
-      if (answer === "y") {
-        const regex = new RegExp(options.filter);
-        let files = fs
-          .readdirSync(absolutePath)
-          .filter((file) => file.endsWith(".pdf"));
-        // filterオプションが指定されている場合はファイル名をフィルタリング
-        if (options.filter) {
-          files = files.filter((file) => regex.test(file));
-        }
-        const unregisteredList: UnregisteredList = {
-          partner: [],
-          documentType: [],
-        };
-        const failedFiles: string[] = [];
-        for (let i = 0; i < files.length; i++) {
-          try {
-            spinner.start(`${i + 1} / ${files.length} 処理中: ${files[i]}`);
-            const { partner, documentType } = await renamePdf(
-              path.join(absolutePath, files[i]),
-              options
-            );
-            unregisteredList.partner.push(partner);
-            unregisteredList.documentType.push(documentType);
-            spinner.stop();
-          } catch (error) {
-            failedFiles.push(files[i]);
-          }
-        }
-        await solveUnregistered(unregisteredList); // 未登録の取引先、証憑種別を登録
-        process.exit(0);
+      if (!isValidFileNameFormat(absolutePath)) {
+        const { partner, documentType } = await renamePdf(absolutePath, options);
+        spinner.stop();
+        await solveUnregistered({
+          partner: [partner],
+          documentType: [documentType],
+        }); // 未登録の取引先、証憑種別を登録
       } else {
-        console.log("処理を中止します。");
-        process.exit(0);
+        console.log(`${path.basename(absolutePath)}はフォーマットが適用されています。`);
       }
+      process.exit(0);
     }
+
+    // ディレクトリパスの場合
+    const answer = await rl.question(
+      "ディレクトリが指定されました。指定されたディレクトリのPDFファイルを処理しますか？[y/n] "
+    );
+
+    if (answer === "y") {
+      const regex = new RegExp(options.filter);
+      let files = fs
+        .readdirSync(absolutePath)
+        .filter((file) => file.endsWith(".pdf"));
+      console.log(`${pdfPath}にあるpdfファイル数: ${files.length}`);
+      // filterオプションが指定されている場合はファイル名をフィルタリング
+      if (options.filter) {
+        files = files.filter((file) => regex.test(file));
+        console.log(`filterオプションが指定され、${files.length}件のファイルがフィルタリングされました。`);
+      }
+      // ファイル名フォーマットチェック
+      const amountFiles = files.length;
+      files = files.filter((file) => !isValidFileNameFormat(path.join(absolutePath, file)));
+      const amountFilesWithInvalidFileNameFormat = files.length;
+      const amountFilesWithValidFileNameFormat = amountFiles - amountFilesWithInvalidFileNameFormat;
+      console.log(`${amountFiles}件のファイルのうち、${amountFilesWithValidFileNameFormat}件のファイルはフォーマットが適用されています。`);
+      console.log(`${amountFilesWithInvalidFileNameFormat}件のファイルを処理します。`)
+      const unregisteredList: UnregisteredList = {
+        partner: [],
+        documentType: [],
+      };
+      const failedFiles: string[] = [];
+      for (let i = 0; i < files.length; i++) {
+        try {
+          spinner.start(`${i + 1} / ${files.length} 処理中: ${files[i]}`);
+          const { partner, documentType } = await renamePdf(
+            path.join(absolutePath, files[i]),
+            options
+          );
+          unregisteredList.partner.push(partner);
+          unregisteredList.documentType.push(documentType);
+          spinner.stop();
+        } catch (error) {
+          failedFiles.push(files[i]);
+        } finally {
+          spinner.stop();
+        }
+      }
+      console.log(`処理したファイル数: ${files.length}`);
+      console.log(`処理に失敗したファイル数: ${failedFiles.length}`);
+      await solveUnregistered(unregisteredList); // 未登録の取引先、証憑種別を登録
+      process.exit(0);
+    } else {
+      console.log("処理を中止します。");
+      process.exit(0);
+    }
+
   } catch (error) {
     console.error("エラーが発生しました:", error);
     process.exit(1);

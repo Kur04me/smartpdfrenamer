@@ -34,11 +34,10 @@ JSON形式
 - 金額...コンマなしの半角数字のみ。存在しない場合は0を出力。
 
 ## 注意点
-- ${config.myCompany.name}${
-  config.myCompany.alias.length > 0
+- ${config.myCompany.name}${config.myCompany.alias.length > 0
     ? "若しくは" + config.myCompany.alias.join(",")
     : ""
-}は自社の名前の為、取引先名には使用しない。
+  }は自社の名前の為、取引先名には使用しない。
 - 生成する文字列はjavascriptのJSON.parse()でパース可能な形式にしてください。
 - プロパティ名もダブルクォートで囲むようにしてください。
 - コードブロックは不要です。
@@ -76,7 +75,7 @@ export async function extractPdfInfo(
           },
           {
             type: "input_text",
-            text: prompt + `\n## 追加のプロンプト\n${options.extraPrompt}`,
+            text: prompt + (options.extraPrompt ? `\n## 追加のプロンプト\n${options.extraPrompt}` : ""),
           },
         ],
       },
