@@ -20,5 +20,8 @@
     "open": "^10.1.2",
     "openai": "^5.0.1",
     "typescript": "^5.8.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.29"
   }
 }
