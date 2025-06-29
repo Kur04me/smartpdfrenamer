@@ -37,6 +37,10 @@ program
   )
   .version("1.0.0")
   .option(
+    "--test",
+    "テストモードをONにします。APIは呼び出しますが、ファイルのリネームは行いません。"
+  )
+  .option(
     "-f, --filter <regex>",
     `正規表現でファイル名をフィルタリングしてからリネームします。
 ディレクトリを指定した場合は無効になります。
@@ -91,7 +95,9 @@ function normalizeInput(input: string): string {
     .toLowerCase();
 }
 
-async function checkRegistered(output: ExtractPdfInfoOutput): Promise<UnregisteredItem> {
+async function checkRegistered(
+  output: ExtractPdfInfoOutput
+): Promise<UnregisteredItem> {
   const unregisteredItem: UnregisteredItem = { partner: "", documentType: "" };
   const tradingPartnerFile = path.join(
     __dirname,
@@ -117,20 +123,24 @@ async function checkRegistered(output: ExtractPdfInfoOutput): Promise<Unregister
   return unregisteredItem;
 }
 
-async function renamePdf(pdfPath: string, options: CommandLineOption): Promise<RenameResult> {
+async function renamePdf(
+  pdfPath: string,
+  options: CommandLineOption
+): Promise<RenameResult> {
   const extractedInfo = await extractInformationFromPDF(pdfPath, options);
   const newFileName = config.rule.fileNameFormat
     .replace("{date}", extractedInfo.date)
     .replace("{partner}", extractedInfo.partner)
     .replace("{documentType}", extractedInfo.documentType)
     .replace("{amount}", extractedInfo.amount);
-  
-  fs.renameSync(pdfPath, path.join(path.dirname(pdfPath), newFileName));
+  if (!options.test) {
+    fs.renameSync(pdfPath, path.join(path.dirname(pdfPath), newFileName));
+  }
   const unregisteredItem = await checkRegistered(extractedInfo);
-  
-  return { 
-    newFileName: newFileName, 
-    unregistered: unregisteredItem
+
+  return {
+    newFileName: newFileName,
+    unregistered: unregisteredItem,
   };
 }
 
@@ -258,6 +268,11 @@ function isValidFileNameFormat(filePath: string): boolean {
 async function main(pdfPath: string, options: CommandLineOption) {
   // 設定チェック
   csvFileCheck(options);
+  if (options.test) {
+    console.warn(
+      "テストモードで実行します。APIは呼び出されますが、ファイルのリネームは行われません。"
+    );
+  }
 
   const rl = readline.createInterface({
     input: process.stdin,
@@ -276,8 +291,12 @@ async function main(pdfPath: string, options: CommandLineOption) {
         const renameResult = await renamePdf(absolutePath, options);
         // 未登録項目を配列に変換
         const unregisteredList: UnregisteredList = {
-          partner: renameResult.unregistered.partner ? [renameResult.unregistered.partner] : [],
-          documentType: renameResult.unregistered.documentType ? [renameResult.unregistered.documentType] : []
+          partner: renameResult.unregistered.partner
+            ? [renameResult.unregistered.partner]
+            : [],
+          documentType: renameResult.unregistered.documentType
+            ? [renameResult.unregistered.documentType]
+            : [],
         };
         await solveUnregistered(unregisteredList, rl);
       } else {
@@ -340,10 +359,14 @@ async function main(pdfPath: string, options: CommandLineOption) {
               );
               // 未登録項目のみをリストに追加
               if (renameResult.unregistered.partner) {
-                unregisteredList.partner.push(renameResult.unregistered.partner);
+                unregisteredList.partner.push(
+                  renameResult.unregistered.partner
+                );
               }
               if (renameResult.unregistered.documentType) {
-                unregisteredList.documentType.push(renameResult.unregistered.documentType);
+                unregisteredList.documentType.push(
+                  renameResult.unregistered.documentType
+                );
               }
               task.title = `完了：${renameResult.newFileName}`;
             } catch (error) {

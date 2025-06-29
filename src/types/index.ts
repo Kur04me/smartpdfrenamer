@@ -21,6 +21,7 @@ export interface ExtractPdfInfoOutput {
 }
 
 export interface CommandLineOption {
+  test: boolean;
   filter: string;
   skipFormatCheck: boolean;
   model: string;
@@ -69,6 +70,7 @@ export interface ChatGPTRequestBody {
 
 export type Config = {
   model: ChatGPTModel;
+  temperature: number;
   tradingPartnerFile: string;
   documentTypeFile: string;
   rule: {

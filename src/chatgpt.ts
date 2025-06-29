@@ -32,6 +32,7 @@ pdfから情報を抽出し、以下のフォーマットのJSONで返答して�
 - 既存の取引先名や証憑種別を入力するので参照してください。
 - 取引先名や証憑種別が既存のものと異なる場合は抽出したものを使用してください。
 - 項目の内容が取得できない場合は、その項目について"取得不可"と出力してください。
+- 安易に"取得不可"と出力せず、可能な限り情報を抽出してください。
 - 最終応答は、"{"で始まり"}"で終わるJSONのみを出力し、JSON以外の文字は一切応答に含めないでください。
 ${
   config.myCompany.name
@@ -76,7 +77,7 @@ export async function extractInformationFromPDF(
   }
   const body: ChatGPTRequestBody = {
     model: config.model as ChatGPTModel,
-    temperature: 0,
+    temperature: config.temperature,
     input: [
       {
         role: "user",
