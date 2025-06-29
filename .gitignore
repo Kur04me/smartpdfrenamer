@@ -8,3 +8,5 @@ config.json
 document_type.csv
 trading_partners.csv
 
+# test
+test.ts
