@@ -28,6 +28,15 @@ function validationOptionArgument(value: string) {
   }
   return value;
 }
+const packageJsonPath = path.resolve(__dirname, "..", "package.json");
+let appVersion: string = "1.0.0"; // デフォルトのバージョン
+try {
+  // package.json を同期的に読み込み、JSONとしてパース
+  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
+  appVersion = packageJson.version;
+} catch (error) {
+  console.error("Error reading package.json version:", error);
+}
 const program = new Command();
 program
   .name("p2f")
@@ -35,7 +44,7 @@ program
     `PDFの内容をChatGPTに読み取らせて電子帳簿保存法に則したファイル名にリネームします。
 デフォルトでは"20250101_丸山商事_請求書_2000.pdf"のように{YYYYMMDD}_{取引先名}_{証憑種別}_{金額}.pdfのフォーマットでリネームします。`
   )
-  .version("1.0.0")
+  .version(appVersion, "-v, --version", "output the current version")
   .option(
     "--test",
     "テストモードをONにします。APIは呼び出しますが、ファイルのリネームは行いません。"

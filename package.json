@@ -1,6 +1,6 @@
 {
   "name": "smartpdfrenamer",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "ChatGPT APIを使用して証憑ファイル(pdf)からファイル名を生成しリネームします。",
   "main": "dist/index.js",
   "bin": {
