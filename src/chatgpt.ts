@@ -1,105 +1,108 @@
-import fs from "fs";
+import {
+  ChatGPTModel,
+  ChatGPTRequestBody,
+  CommandLineOption,
+  ExtractPdfInfoOutput,
+} from "./types/index";
 import OpenAI from "openai";
-import path from "path";
-import { config } from "./config";
+import config from "./config";
 import "dotenv/config";
+import fs from "fs";
+import path from "path";
 
-let apiKey = process.env.OPENAI_API_KEY;
-if (!apiKey) {
-  console.error(`APIキーが設定されていません。処理を終了します。`);
-  process.exit(1);
-}
-const client = new OpenAI({ apiKey: apiKey });
+// 20250628現在、ChatGPTのAPIが受け取れるpdfは100ページまで、32MBまで
 
-const partners = fs.readFileSync(
-  path.join(__dirname, "..", config.tradingPartnerFile),
-  "utf-8"
-);
-const documentType = fs.readFileSync(
-  path.join(__dirname, "..", config.documentTypeFile),
-  "utf-8"
-);
 const prompt = `
-## Task
-pdfの内容から情報を抽出してJSON形式で出力。
+pdfの内容を読み込み、以下のフォーマットのJSONで返答してください。
 
-## Response format
-JSON形式
-{date: 日付, partner: 取引先名, documentType: 証憑種別, amount: 金額}
+# JSONフォーマット
+{"date":"取引日(${config.rule.dateFormat})",
+"partner":"取引先名",
+"documentType":"書類種別(例: 見積書, 納品書, 請求書, 領収書, 注文書)",
+"amount":"金額(カンマなしの数字のみ"}
 
-## Values
-- 日付...${config.rule.dateFormat}形式。
-- 取引先名...後述の取引先名リストから優先して選択。合致するものがなければ内容から抽出。
-- 証憑種別...後述の証憑種別から優先して選択。合致するものがなければ内容を考慮して新たに生成。
-- 金額...コンマなしの半角数字のみ。存在しない場合は0を出力。
-
-## 注意点
-- ${config.myCompany.name}${config.myCompany.alias.length > 0
-    ? "若しくは" + config.myCompany.alias.join(",")
+# 注意点
+- 最終応答は、"{"で始まり"}"で終わるJSONのみを出力し、JSON以外の文字は一切応答に含めないでください。
+${
+  config.myCompany.name
+    ? `- 自社の名前は"${config.myCompany.name}"${
+        config.myCompany.alias ? `,${config.myCompany.alias.join(",")}` : ""
+      }です。`
     : ""
-  }は自社の名前の為、取引先名には使用しない。
-- 生成する文字列はjavascriptのJSON.parse()でパース可能な形式にしてください。
-- プロパティ名もダブルクォートで囲むようにしてください。
-- コードブロックは不要です。
+}
 
-## 取引先リスト
-${partners}
+JSON:`;
 
-## 証憑種別
-${documentType}
-`;
+export class Client {
+  private openai: OpenAI;
 
-/**
- * PDFファイルから書類情報(日付、取引先名、証憑種別、金額)を抽出する
- * @param path PDFファイルのパス
- */
-export async function extractPdfInfo(
-  pdfPath: string,
-  options: CommandLineOption
+  constructor() {
+    this.openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+  }
+
+  async getResponse(body: ChatGPTRequestBody) {
+    return await this.openai.responses.create(body);
+  }
+}
+
+export async function extractInformationFromPDF(
+  filePath: string,
+  options?: CommandLineOption
 ) {
-  // pdf -> base64
-  const filename = path.basename(pdfPath);
-  const data = fs.readFileSync(pdfPath);
-  const base64String = data.toString("base64");
-  // ファイル名を生成
-  const body: OpenAI.Responses.ResponseCreateParamsNonStreaming = {
-    model: options.model || config.model,
+  let base64String: string;
+  try {
+    const data = fs.readFileSync(filePath);
+    base64String = data.toString("base64");
+  } catch (error) {
+    throw error;
+  }
+  const body: ChatGPTRequestBody = {
+    model: config.model as ChatGPTModel,
+    temperature: 0,
     input: [
       {
         role: "user",
         content: [
           {
             type: "input_file",
-            filename: filename,
+            filename: path.basename(filePath),
             file_data: `data:application/pdf;base64,${base64String}`,
           },
           {
             type: "input_text",
-            text: prompt + (options.extraPrompt ? `\n## 追加のプロンプト\n${options.extraPrompt}` : ""),
+            text: prompt,
           },
         ],
       },
     ],
   };
-  if (options.debug) {
-    const debugBody = JSON.parse(JSON.stringify(body));
-    debugBody.input[0].content[0].file_data = "[base64省略]";
-    console.log(`Request body`);
-    console.dir(debugBody, { depth: null });
+  const client = new Client();
+  try {
+    const response = await client.getResponse(body);
+    if (response.output_text) {
+      return JSON.parse(response.output_text) as ExtractPdfInfoOutput;
+    } else {
+      throw new Error(
+        `レスポンスに結果が含まれていません。response: ${JSON.stringify(
+          response
+        )}`
+      );
+    }
+  } catch (error) {
+    throw error;
   }
-  const response = await client.responses.create(body);
-  const responseOutputText = response.output_text;
-  if (options.debug) console.log(`response.output_text: ${responseOutputText}`);
-  const output = JSON.parse(responseOutputText) as ExtractPdfInfoOutput;
-  // 未登録の取引先名と証憑種別を抽出
-  const unregistered: Unregistered = { partner: "", documentType: "" };
-  const partnerArray = partners.split(",");
-  const documentTypeArray = documentType.split(",");
-  if (!partnerArray.includes(output.partner)) {
-    unregistered.partner = output.partner;
-  }
-  if (!documentTypeArray.includes(output.documentType)) {
-    unregistered.documentType = output.documentType;
-  }
-  return { output, unregistered };
+}
+
+async function test() {
+  console.log("Testing ChatGPT Client...");
+  const result = await extractInformationFromPDF(
+    path.join(__dirname, "../test/data/sample.pdf")
+  );
+  console.log(result);
+}
+if (require.main === module) {
+  // モジュールが直接実行された場合のみテストを実行
+  test();
 }
