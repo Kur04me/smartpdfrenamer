@@ -1,7 +1,7 @@
 import { Config } from "./types";
 
 export const defaultConfig: Config = {
-  model: "gpt-4o-mini",
+  model: "gpt-4o",
   temperature: 0.1,
   tradingPartnerFile: "trading_partners.csv",
   documentTypeFile: "document_type.csv",
