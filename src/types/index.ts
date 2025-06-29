@@ -22,7 +22,6 @@ export interface CommandLineOption {
   tradingPartnerFile: string;
   documentTypeFile: string;
   debug: boolean;
-  extraPrompt: string;
 }
 
 /**
@@ -44,6 +43,7 @@ export declare class Spinner {
 
 export interface ChatGPTRequestBody {
   model: ChatGPTModel;
+  temperature: number;
   input: [
     {
       role: "user";
