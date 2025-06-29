@@ -1,6 +1,11 @@
-export interface Unregistered {
+export interface UnregisteredItem {
   partner: string;
   documentType: string;
+}
+
+export interface RenameResult {
+  newFileName: string;
+  unregistered: UnregisteredItem;
 }
 
 export interface UnregisteredList {
@@ -74,6 +79,7 @@ export type Config = {
     name: string;
     alias: string[];
   };
+  maxConcurrentApiCalls: number;
 };
 
 export type ChatGPTModel =

@@ -4,6 +4,8 @@ import {
   CommandLineOption,
   UnregisteredList,
   ExtractPdfInfoOutput,
+  UnregisteredItem,
+  RenameResult,
 } from "./types/index";
 import { Client, extractInformationFromPDF } from "./chatgpt";
 import path from "path";
@@ -89,8 +91,8 @@ function normalizeInput(input: string): string {
     .toLowerCase();
 }
 
-async function checkRegistered(output: ExtractPdfInfoOutput) {
-  const result = { partner: "", documentType: "" };
+async function checkRegistered(output: ExtractPdfInfoOutput): Promise<UnregisteredItem> {
+  const unregisteredItem: UnregisteredItem = { partner: "", documentType: "" };
   const tradingPartnerFile = path.join(
     __dirname,
     "..",
@@ -103,28 +105,33 @@ async function checkRegistered(output: ExtractPdfInfoOutput) {
     .readFileSync(tradingPartnerFile, "utf-8")
     .split(",");
   if (!tradingPartners.includes(output.partner)) {
-    result.partner = output.partner;
+    unregisteredItem.partner = output.partner;
   }
 
   // 証憑種別の登録チェック
   const documentTypes = fs.readFileSync(documentTypeFile, "utf-8").split(",");
   if (!documentTypes.includes(normalizeInput(output.documentType))) {
-    result.documentType = output.documentType;
+    unregisteredItem.documentType = output.documentType;
   }
 
-  return result;
+  return unregisteredItem;
 }
 
-async function renamePdf(pdfPath: string, options: CommandLineOption) {
-  const fileName = path.basename(pdfPath);
-  const output = await extractInformationFromPDF(pdfPath, options);
+async function renamePdf(pdfPath: string, options: CommandLineOption): Promise<RenameResult> {
+  const extractedInfo = await extractInformationFromPDF(pdfPath, options);
   const newFileName = config.rule.fileNameFormat
-    .replace("{date}", output.date)
-    .replace("{partner}", output.partner)
-    .replace("{documentType}", output.documentType)
-    .replace("{amount}", output.amount);
+    .replace("{date}", extractedInfo.date)
+    .replace("{partner}", extractedInfo.partner)
+    .replace("{documentType}", extractedInfo.documentType)
+    .replace("{amount}", extractedInfo.amount);
+  
   fs.renameSync(pdfPath, path.join(path.dirname(pdfPath), newFileName));
-  return checkRegistered(output);
+  const unregisteredItem = await checkRegistered(extractedInfo);
+  
+  return { 
+    newFileName: newFileName, 
+    unregistered: unregisteredItem
+  };
 }
 
 async function solveUnregistered(
@@ -266,11 +273,12 @@ async function main(pdfPath: string, options: CommandLineOption) {
     const stats = fs.statSync(absolutePath);
     if (stats.isFile()) {
       if (!isValidFileNameFormat(absolutePath)) {
-        const unregistered = await renamePdf(absolutePath, options);
-        // オブジェクトの値を配列に変換
-        const unregisteredList = Object.fromEntries(
-          Object.entries(unregistered).map(([key, value]) => [key, [value]])
-        ) as unknown as UnregisteredList;
+        const renameResult = await renamePdf(absolutePath, options);
+        // 未登録項目を配列に変換
+        const unregisteredList: UnregisteredList = {
+          partner: renameResult.unregistered.partner ? [renameResult.unregistered.partner] : [],
+          documentType: renameResult.unregistered.documentType ? [renameResult.unregistered.documentType] : []
+        };
         await solveUnregistered(unregisteredList, rl);
       } else {
         console.log(
@@ -312,28 +320,52 @@ async function main(pdfPath: string, options: CommandLineOption) {
       console.log(
         `${amountFilesWithInvalidFileNameFormat}件のファイルを処理します。`
       );
-      
+
       // 対象ファイルの処理
       const unregisteredList: UnregisteredList = {
         partner: [],
         documentType: [],
       };
       const failedFiles: string[] = [];
-      for (let i = 0; i < files.length; i++) {
-        try {
-          const unregistered = await renamePdf(
-            path.join(absolutePath, files[i]),
-            options
-          );
-          unregisteredList.partner.push(unregistered.partner);
-          unregisteredList.documentType.push(unregistered.documentType);
-        } catch (error) {
-          failedFiles.push(files[i]);
-        } finally {
+
+      // Listr2を使用した並列処理
+      const tasks = new Listr(
+        files.map((file) => ({
+          title: `処理中：${file}`,
+          task: async (ctx, task) => {
+            try {
+              const renameResult = await renamePdf(
+                path.join(absolutePath, file),
+                options
+              );
+              // 未登録項目のみをリストに追加
+              if (renameResult.unregistered.partner) {
+                unregisteredList.partner.push(renameResult.unregistered.partner);
+              }
+              if (renameResult.unregistered.documentType) {
+                unregisteredList.documentType.push(renameResult.unregistered.documentType);
+              }
+              task.title = `完了：${renameResult.newFileName}`;
+            } catch (error) {
+              failedFiles.push(file);
+              task.title = `失敗：${file}`;
+              throw error;
+            }
+          },
+        })),
+        {
+          concurrent: config.maxConcurrentApiCalls,
+          exitOnError: false,
         }
-      }
+      );
+
+      await tasks.run();
+
       console.log(`処理したファイル数: ${files.length}`);
       console.log(`処理に失敗したファイル数: ${failedFiles.length}`);
+      if (failedFiles.length > 0) {
+        console.log(`失敗したファイル: ${failedFiles.join(", ")}`);
+      }
       await solveUnregistered(unregisteredList, rl); // 未登録の取引先、証憑種別を登録
       process.exit(0);
     } else {

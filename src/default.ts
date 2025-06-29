@@ -1,4 +1,4 @@
-import {Config} from "./types";
+import { Config } from "./types";
 
 export const defaultConfig: Config = {
   model: "gpt-4o-mini",
@@ -12,6 +12,7 @@ export const defaultConfig: Config = {
     name: "",
     alias: [],
   },
+  maxConcurrentApiCalls: 3,
 };
 
 export const DEFAULT_DOCUMENT_TYPE = [
