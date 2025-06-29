@@ -1,3 +1,5 @@
+import {Config} from "./types";
+
 export const defaultConfig: Config = {
   model: "gpt-4o-mini",
   tradingPartnerFile: "trading_partners.csv",
