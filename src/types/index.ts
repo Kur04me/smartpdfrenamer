@@ -49,7 +49,7 @@ export declare class Spinner {
 
 export interface ChatGPTRequestBody {
   model: ChatGPTModel;
-  temperature: number;
+  temperature?: number;
   input: [
     {
       role: "user";
@@ -90,6 +90,7 @@ export type ChatGPTModel =
   | "gpt-4-1106-preview"
   | "gpt-4.5-preview"
   | "gpt-4o"
+  | "gpt-5"
   | "chatgpt-4o-latest"
   | "gpt-4o-mini"
   | "o1"

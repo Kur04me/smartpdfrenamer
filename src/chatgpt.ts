@@ -104,7 +104,7 @@ export async function extractInformationFromPDF(
   }
   const body: ChatGPTRequestBody = {
     model: config.model as ChatGPTModel,
-    temperature: config.temperature,
+    ...(config.model !== "gpt-5" && { temperature: config.temperature }),
     input: [
       {
         role: "user",
