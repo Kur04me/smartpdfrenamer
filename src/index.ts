@@ -342,6 +342,7 @@ async function main(pdfPath: string, options: CommandLineOption) {
       const amountFilesWithInvalidFileNameFormat = files.length;
       const amountFilesWithValidFileNameFormat =
         amountFiles - amountFilesWithInvalidFileNameFormat;
+      console.log(`使用するモデル: ${options.model}`);
       console.log(
         `${amountFiles}件のファイルのうち、${amountFilesWithValidFileNameFormat}件のファイルはフォーマットが適用されています。`
       );
