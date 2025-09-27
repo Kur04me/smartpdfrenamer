@@ -143,6 +143,26 @@ async function renamePdf(
     .replace("{documentType}", extractedInfo.documentType)
     .replace("{amount}", extractedInfo.amount);
   if (!options.test) {
+    // 同じ名前のファイルが存在する場合は連番を付与
+    if (fs.existsSync(path.join(path.dirname(pdfPath), newFileName))) {
+      console.warn(
+        `${newFileName}は既に存在するため、連番を付与してリネームします。`
+      );
+      let counter = 1;
+      while (counter < 1000) {
+        const newFileNameWithCounter = newFileName.replace(
+          /\.pdf$/,
+          `_${counter}.pdf`);
+        if (!fs.existsSync(path.join(path.dirname(pdfPath), newFileNameWithCounter))) {
+          fs.renameSync(pdfPath, path.join(path.dirname(pdfPath), newFileNameWithCounter));
+          const unregisteredItem = await checkRegistered(extractedInfo);
+          return {
+            newFileName: newFileNameWithCounter,
+            unregistered: unregisteredItem,
+          };
+        }
+        counter++;
+      }
     fs.renameSync(pdfPath, path.join(path.dirname(pdfPath), newFileName));
   }
   const unregisteredItem = await checkRegistered(extractedInfo);
