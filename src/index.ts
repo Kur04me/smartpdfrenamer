@@ -60,7 +60,7 @@ program
     "-s, --skip-format-check",
     "リネーム前のファイル名チェックをOFFにします。全てのファイルがリネームされます。"
   )
-  .option("-m, --model <model>", "使用するモデルを指定します。", "gpt-4o")
+  .option("-m, --model <model>", "使用するモデルを指定します。", "gpt-5")
   .option(
     "-t, --trading-partner-file <file>",
     "取引先ファイルを指定します。",
