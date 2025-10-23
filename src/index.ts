@@ -142,15 +142,52 @@ async function renamePdf(
     .replace("{partner}", extractedInfo.partner)
     .replace("{documentType}", extractedInfo.documentType)
     .replace("{amount}", extractedInfo.amount);
-  if (!options.test) {
-    fs.renameSync(pdfPath, path.join(path.dirname(pdfPath), newFileName));
+  const originalAbsolutePath = path.resolve(pdfPath);
+  const targetDir = path.dirname(originalAbsolutePath);
+  const uniqueFileName = ensureUniqueFileName(
+    targetDir,
+    newFileName,
+    originalAbsolutePath
+  );
+  const targetPath = path.join(targetDir, uniqueFileName);
+
+  if (!options.test && targetPath !== originalAbsolutePath) {
+    fs.renameSync(pdfPath, targetPath);
   }
+
   const unregisteredItem = await checkRegistered(extractedInfo);
 
   return {
-    newFileName: newFileName,
+    newFileName: uniqueFileName,
     unregistered: unregisteredItem,
   };
+}
+
+function ensureUniqueFileName(
+  directory: string,
+  desiredFileName: string,
+  originalAbsolutePath: string
+): string {
+  const ext = path.extname(desiredFileName);
+  const baseName = path.basename(desiredFileName, ext);
+
+  let counter = 1;
+  let candidate = desiredFileName;
+
+  while (true) {
+    const candidatePath = path.join(directory, candidate);
+    // 既存ファイルが現在リネーム対象のファイル自身であれば重複扱いにはしない
+    if (
+      !fs.existsSync(candidatePath) ||
+      path.resolve(candidatePath) === originalAbsolutePath
+    ) {
+      return candidate;
+    }
+
+    const suffix = `_${String(counter).padStart(3, "0")}`;
+    candidate = `${baseName}${suffix}${ext}`;
+    counter++;
+  }
 }
 
 async function solveUnregistered(
